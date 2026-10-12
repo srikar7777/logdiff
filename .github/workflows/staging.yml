@@ -1,12 +1,9 @@
 name: Staging
-
 on:
   push:
     branches: [main]
-
 permissions:
   contents: read
-
 jobs:
   integration:
     name: Integration Tests + Perf Gate
@@ -41,7 +38,7 @@ jobs:
       - name: Performance gate — HDFS 2k sample
         run: |
           echo "## Performance Gate" >> $GITHUB_STEP_SUMMARY
-          OUTPUT=$(./log-lens bench testdata/HDFS_2k.log 2>&1)
+          OUTPUT=$(./logdiff bench testdata/HDFS_2k.log 2>&1)
           echo "$OUTPUT"
           echo '```' >> $GITHUB_STEP_SUMMARY
           echo "$OUTPUT" >> $GITHUB_STEP_SUMMARY
@@ -55,7 +52,7 @@ jobs:
 
       - name: Diff same file — expect zero regressions
         run: |
-          ./log-lens diff testdata/HDFS_2k.log testdata/HDFS_2k.log && \
+          ./logdiff diff testdata/HDFS_2k.log testdata/HDFS_2k.log && \
             echo "✅ Zero regressions on same-file diff" || \
             echo "⚠️  Unexpected regressions on same-file diff"
           echo "" >> $GITHUB_STEP_SUMMARY

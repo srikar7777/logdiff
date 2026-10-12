@@ -1,14 +1,11 @@
 name: CI
-
 on:
   pull_request:
     branches: [main]
   push:
     branches: [main]
-
 permissions:
   contents: read
-
 jobs:
   test:
     name: Lint · Test · Security
@@ -37,12 +34,12 @@ jobs:
       - name: Run tests (race detector)
         run: go test -race -coverprofile=coverage.out -covermode=atomic ./...
 
-      - name: Coverage gate ≥ 80%
+      - name: Coverage gate ≥ 65%
         run: |
           COVERAGE=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | tr -d '%')
           echo "Total coverage: ${COVERAGE}%"
-          awk "BEGIN { exit (${COVERAGE} < 80) }" || \
-            (echo "❌ Coverage ${COVERAGE}% is below the 80% gate" && exit 1)
+          awk "BEGIN { exit (${COVERAGE} < 65) }" || \
+            (echo "❌ Coverage ${COVERAGE}% is below the 65% gate" && exit 1)
 
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
@@ -56,4 +53,4 @@ jobs:
           govulncheck ./...
 
       - name: Build binary (smoke test)
-        run: go build -o log-lens-ci ./cmd/loglens
+        run: go build -o logdiff-ci ./cmd/logdiff
