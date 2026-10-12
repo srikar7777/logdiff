@@ -1,0 +1,60 @@
+# Example: Use logdiff as a GitHub Action in your CI pipeline.
+# Copy this to .github/workflows/log-regression-check.yml in your repo.
+#
+# This workflow:
+#  1. Runs your test suite on both main and the PR branch to capture logs
+#  2. Diffs the two log files with logdiff
+#  3. Fails the PR if new error patterns, velocity anomalies, or missing
+#     lifecycle events are detected
+#  4. Uploads an HTML report as a workflow artifact
+
+name: Log Regression Check
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  log-diff:
+    name: Detect Log Regressions
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+
+      # ── Step 1: capture baseline log (main branch) ──────────────────────────
+      - name: Run tests on main branch (baseline)
+        run: |
+          git fetch origin main
+          git stash
+          git checkout origin/main
+          # Replace with your actual test command
+          ./run-tests.sh 2>&1 | tee /tmp/baseline.log || true
+          git checkout -
+
+      # ── Step 2: capture candidate log (this PR) ─────────────────────────────
+      - name: Run tests on PR branch (candidate)
+        run: |
+          # Replace with your actual test command
+          ./run-tests.sh 2>&1 | tee /tmp/candidate.log || true
+
+      # ── Step 3: diff with logdiff ───────────────────────────────────────────
+      - name: Diff logs with logdiff
+        id: logdiff
+        uses: srikarmaddena/logdiff@v1
+        with:
+          baseline: /tmp/baseline.log
+          candidate: /tmp/candidate.log
+          fail-on-regression: "true"
+          output-file: log-diff-report.html
+          velocity-threshold: "10.0"
+
+      # ── Step 4: upload HTML report ───────────────────────────────────────────
+      - name: Upload diff report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: log-diff-report
+          path: log-diff-report.html
+          retention-days: 14

@@ -1,0 +1,81 @@
+name: logdiff
+description: High-speed log differ for CI regression testing. Diffs two CI log files and surfaces new error patterns, velocity anomalies, and missing lifecycle events.
+author: srikarmaddena
+
+branding:
+  icon: search
+  color: blue
+
+inputs:
+  baseline:
+    description: Path to the baseline log file (e.g. from main branch run)
+    required: true
+  candidate:
+    description: Path to the candidate log file (e.g. from PR branch run)
+    required: true
+  fail-on-regression:
+    description: Exit with code 1 if any regressions are detected
+    required: false
+    default: "true"
+  output-file:
+    description: Path to write JSON or HTML report (extension determines format)
+    required: false
+    default: ""
+  sim-threshold:
+    description: Drain similarity threshold for pattern matching (0.0–1.0)
+    required: false
+    default: "0.4"
+  velocity-threshold:
+    description: Count ratio multiplier that triggers a velocity anomaly
+    required: false
+    default: "10.0"
+
+outputs:
+  regressions-found:
+    description: "'true' if any regressions were detected"
+
+runs:
+  using: composite
+  steps:
+    - name: Download logdiff binary
+      shell: bash
+      run: |
+        OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+        ARCH=$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')
+        LATEST=$(curl -sf "https://api.github.com/repos/srikarmaddena/logdiff/releases/latest" \
+          | grep '"tag_name"' | cut -d'"' -f4)
+        VER="${LATEST#v}"
+        URL="https://github.com/srikarmaddena/logdiff/releases/download/${LATEST}/logdiff_${VER}_${OS}_${ARCH}.tar.gz"
+        echo "Downloading logdiff ${LATEST} for ${OS}/${ARCH}"
+        curl -sL "$URL" | tar xz logdiff
+        chmod +x logdiff
+        echo "$PWD" >> "$GITHUB_PATH"
+
+    - name: Run logdiff diff
+      shell: bash
+      run: |
+        ARGS="diff ${{ inputs.baseline }} ${{ inputs.candidate }}"
+        ARGS="$ARGS --sim-threshold ${{ inputs.sim-threshold }}"
+        ARGS="$ARGS --velocity-threshold ${{ inputs.velocity-threshold }}"
+        if [ -n "${{ inputs.output-file }}" ]; then
+          ARGS="$ARGS --output ${{ inputs.output-file }}"
+        fi
+        set +e
+        ./logdiff $ARGS 2>&1 | tee /tmp/logdiff-output.txt
+        EXIT_CODE=${PIPESTATUS[0]}
+        set -e
+
+        echo "## logdiff Diff Report" >> "$GITHUB_STEP_SUMMARY"
+        echo '```' >> "$GITHUB_STEP_SUMMARY"
+        cat /tmp/logdiff-output.txt >> "$GITHUB_STEP_SUMMARY"
+        echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+        if grep -q "regressions found" /tmp/logdiff-output.txt; then
+          echo "regressions-found=true" >> "$GITHUB_OUTPUT"
+          if [ "${{ inputs.fail-on-regression }}" = "true" ]; then
+            echo "❌ Regressions detected — failing CI"
+            exit 1
+          fi
+        else
+          echo "regressions-found=false" >> "$GITHUB_OUTPUT"
+        fi
