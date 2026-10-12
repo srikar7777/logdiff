@@ -1,6 +1,6 @@
-# Binaries
-logdiff
-log-lens
+# Binaries (root-level only)
+/logdiff
+/log-lens
 *.exe
 *.dll
 *.so
