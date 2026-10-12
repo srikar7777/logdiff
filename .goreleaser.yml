@@ -1,0 +1,76 @@
+version: 2
+
+project_name: logdiff
+
+before:
+  hooks:
+    - go mod tidy
+    - go test ./...
+
+builds:
+  - main: ./cmd/logdiff
+    binary: logdiff
+    env:
+      - CGO_ENABLED=0
+    ldflags:
+      - -s -w
+      - -X github.com/srikarmaddena/logdiff/pkg/version.Version={{.Version}}
+      - -X github.com/srikarmaddena/logdiff/pkg/version.Commit={{.Commit}}
+      - -X github.com/srikarmaddena/logdiff/pkg/version.BuildDate={{.Date}}
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      - goos: windows
+        goarch: arm64
+
+archives:
+  - format: tar.gz
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        format: zip
+    files:
+      - README.md
+      - LICENSE
+      - CHANGELOG.md
+
+checksum:
+  name_template: "checksums.txt"
+  algorithm: sha256
+
+signs:
+  - artifacts: checksum
+    cmd: gpg2
+    args:
+      - "--batch"
+      - "-u"
+      - "{{ .Env.GPG_FINGERPRINT }}"
+      - "--output"
+      - "${signature}"
+      - "--detach-sign"
+      - "${artifact}"
+
+release:
+  github:
+    owner: srikarmaddena
+    name: logdiff
+  header: |
+    ## logdiff {{ .Tag }}
+    High-speed log differ for CI regression testing.
+  footer: |
+    **Full Changelog**: https://github.com/srikarmaddena/logdiff/compare/{{ .PreviousTag }}...{{ .Tag }}
+
+changelog:
+  sort: asc
+  use: github
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+      - "Merge pull request"
