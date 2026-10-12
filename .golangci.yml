@@ -1,8 +1,7 @@
 linters-settings:
   govet:
-    check-shadowing: true
-  staticcheck:
-    go: "1.22"
+    enable:
+      - shadow
   gofmt:
     simplify: true
   gocritic:
@@ -28,7 +27,7 @@ issues:
     # Test files: relax errcheck
     - path: "_test\\.go"
       linters: [errcheck]
-    # CLI main: relax errcheck on cobra helpers
+    # CLI layer: relax errcheck on cobra/color helpers
     - path: "internal/cli"
       linters: [errcheck]
 
