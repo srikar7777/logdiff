@@ -25,7 +25,7 @@ jobs:
         run: make build
 
       - name: Cache LogHub datasets
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         id: cache-datasets
         with:
           path: testdata/
